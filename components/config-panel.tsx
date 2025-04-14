@@ -16,6 +16,7 @@ interface ConfigPanelProps {
   onTabChange: (tab: "properties" | "structure" | "json") => void
   onUpdateComponent: (component: FormComponent) => void
   onFormUpdate: (updates: Partial<FormData>) => void
+  onFormDataReplace?: (formData: FormData) => void
 }
 
 export function ConfigPanel({
@@ -25,6 +26,7 @@ export function ConfigPanel({
   onTabChange,
   onUpdateComponent,
   onFormUpdate,
+  onFormDataReplace,
 }: ConfigPanelProps) {
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -81,7 +83,7 @@ export function ConfigPanel({
         </TabsContent>
 
         <TabsContent value="json" className="flex-1 overflow-y-auto p-4">
-          <JsonViewerTab formData={formData} />
+          <JsonViewerTab formData={formData} onFormUpdate={onFormDataReplace} />
         </TabsContent>
       </Tabs>
     </div>

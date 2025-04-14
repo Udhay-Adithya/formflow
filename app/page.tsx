@@ -1,9 +1,5 @@
-import { FormBuilder } from "@/components/form-builder"
+import { LandingPage } from "@/components/landing-page"
 
 export default function Home() {
-  return (
-    <main className="min-h-screen">
-      <FormBuilder />
-    </main>
-  )
+  return <LandingPage />
 }

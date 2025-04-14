@@ -15,11 +15,20 @@ import {
   CheckSquare,
   List,
   FileText,
+  Calendar,
+  Check,
+  Heading1,
+  Heading2,
+  Heading3,
+  Minus,
+  ArrowUpDown,
+  Send,
+  SeparatorHorizontal,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { componentTypes } from "@/lib/component-types"
+import { componentTypes, pageComponentTypes } from "@/lib/component-types"
 import type { FormComponent } from "@/lib/types"
 
 interface ComponentLibraryProps {
@@ -28,8 +37,15 @@ interface ComponentLibraryProps {
 
 export function ComponentLibrary({ onAddComponent }: ComponentLibraryProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState<"fields" | "page">("fields")
 
   const filteredComponents = componentTypes.filter(
+    (component) =>
+      component.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      component.description.toLowerCase().includes(searchQuery.toLowerCase()),
+  )
+
+  const filteredPageComponents = pageComponentTypes.filter(
     (component) =>
       component.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
       component.description.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -50,7 +66,12 @@ export function ComponentLibrary({ onAddComponent }: ComponentLibraryProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="fields" className="flex-1 overflow-hidden">
+      <Tabs
+        defaultValue="fields"
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as "fields" | "page")}
+        className="flex-1 overflow-hidden"
+      >
         <TabsList className="grid grid-cols-2 mx-4 mt-2">
           <TabsTrigger value="fields">Fields</TabsTrigger>
           <TabsTrigger value="page">Page</TabsTrigger>
@@ -65,8 +86,10 @@ export function ComponentLibrary({ onAddComponent }: ComponentLibraryProps) {
         </TabsContent>
 
         <TabsContent value="page" className="flex-1 overflow-y-auto p-2">
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            Page components coming soon
+          <div className="space-y-1">
+            {filteredPageComponents.map((component) => (
+              <ComponentItem key={component.type} component={component} onAddComponent={onAddComponent} />
+            ))}
           </div>
         </TabsContent>
       </Tabs>
@@ -120,6 +143,26 @@ function ComponentItem({ component, onAddComponent }: ComponentItemProps) {
         return <List className="h-5 w-5" />
       case "description":
         return <FileText className="h-5 w-5" />
+      case "date_time":
+        return <Calendar className="h-5 w-5" />
+      case "choice":
+        return <List className="h-5 w-5" />
+      case "checkbox":
+        return <Check className="h-5 w-5" />
+      case "form_heading":
+        return <Heading1 className="h-5 w-5" />
+      case "section_heading":
+        return <Heading2 className="h-5 w-5" />
+      case "sub_heading":
+        return <Heading3 className="h-5 w-5" />
+      case "divider":
+        return <Minus className="h-5 w-5" />
+      case "spacer":
+        return <ArrowUpDown className="h-5 w-5" />
+      case "submit":
+        return <Send className="h-5 w-5" />
+      case "page_break":
+        return <SeparatorHorizontal className="h-5 w-5" />
       default:
         return <Type className="h-5 w-5" />
     }

@@ -79,6 +79,11 @@ export function FormBuilder() {
     }))
   }
 
+  const handleFormDataReplace = (newFormData: FormData) => {
+    setFormData(newFormData)
+    setSelectedComponent(null)
+  }
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col h-screen">
@@ -100,6 +105,7 @@ export function FormBuilder() {
             onTabChange={setActiveTab}
             onUpdateComponent={handleUpdateComponent}
             onFormUpdate={handleFormUpdate}
+            onFormDataReplace={handleFormDataReplace}
           />
         </div>
       </div>
