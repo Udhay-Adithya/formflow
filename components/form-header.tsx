@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Save, Eye, Share2, Sun, Moon, Home, MoreHorizontal } from "lucide-react"
+import { Save, Eye, Sun, Moon, Home, MoreHorizontal } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useTheme } from "next-themes"
@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import type { FormData } from "@/lib/types"
 import { AiFormGenerator } from "@/components/ai-form-generator"
 import { FormPreview } from "@/components/form-preview"
+import { ShareFormDialog } from "./share-form-dialogue"
 
 interface FormHeaderProps {
   formData: FormData
@@ -49,11 +50,6 @@ export function FormHeader({ formData, onFormUpdate }: FormHeaderProps) {
 
   const handlePreview = () => {
     setPreviewOpen(true)
-  }
-
-  const handleShare = () => {
-    // Share form logic would go here
-    console.log("Sharing form:", formData)
   }
 
   const toggleTheme = () => {
@@ -106,10 +102,7 @@ export function FormHeader({ formData, onFormUpdate }: FormHeaderProps) {
             <span className="hidden sm:inline">Preview</span>
           </Button>
 
-          <Button variant="outline" size="sm" className="gap-1" onClick={handleShare}>
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Share</span>
-          </Button>
+          <ShareFormDialog formData={formData} />
 
           <Button variant="ghost" size="icon" onClick={toggleTheme}>
             {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
