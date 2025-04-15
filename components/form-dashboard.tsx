@@ -88,6 +88,7 @@ const mockTemplates = [
 export function FormDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [forms, setForms] = useState(mockForms)
   const router = useRouter()
 
   const filteredForms = mockForms.filter((form) => form.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -102,11 +103,16 @@ export function FormDashboard() {
   }
 
   const handleCreateForm = () => {
-    router.push("/")
+    router.push("/builder")
   }
 
   const handleOpenForm = (formId: string) => {
-    router.push("/")
+    router.push("/builder")
+  }
+
+  const handleRemoveForm = (formId: string) => {
+    const updatedForms = forms.filter((form) => form.id !== formId)
+    setForms(updatedForms)
   }
 
   return (
@@ -183,7 +189,7 @@ export function FormDashboard() {
                           <DropdownMenuItem onClick={() => handleOpenForm(form.id)}>Edit</DropdownMenuItem>
                           <DropdownMenuItem>Duplicate</DropdownMenuItem>
                           <DropdownMenuItem>Share</DropdownMenuItem>
-                          <DropdownMenuItem>Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleRemoveForm(form.id)}>Delete</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -242,7 +248,7 @@ export function FormDashboard() {
                         <DropdownMenuItem onClick={() => handleOpenForm(form.id)}>Edit</DropdownMenuItem>
                         <DropdownMenuItem>Duplicate</DropdownMenuItem>
                         <DropdownMenuItem>Share</DropdownMenuItem>
-                        <DropdownMenuItem>Delete</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleRemoveForm(form.id)}>Delete</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
