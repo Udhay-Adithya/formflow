@@ -34,6 +34,15 @@ export interface FormComponent {
   isNew?: boolean
 }
 
+export interface FormSettings {
+  requiresLogin: boolean;
+  confirmationMessage: string;
+  allowMultipleSubmissions: boolean;
+  redirectUrl?: string;
+  theme?: string;
+  submitButtonText?: string;
+}
+
 export interface ComponentConfigProps {
   component: FormComponent
   onUpdate: (component: FormComponent) => void
