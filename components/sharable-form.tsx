@@ -33,97 +33,52 @@ export function ShareableForm({ formId }: ShareableFormProps) {
             setError(null)
 
             try {
-                // In a real app, this would be a fetch call to your API
-                // For now, we'll simulate a delay and use mock data
-                await new Promise((resolve) => setTimeout(resolve, 1000))
+                console.log('Form ID:', formId)
+                const token = localStorage.getItem("token");
+                if (!token) throw new Error("No authentication token found");
 
-                // This is where you would fetch the form data from your backend
-                // const response = await fetch(`/api/forms/${formId}`);
-                // if (!response.ok) throw new Error('Failed to load form');
-                // const data = await response.json();
-
-                // Mock data for demonstration
-                const mockFormData: FormData = {
-                    id: formId,
-                    title: "Customer Feedback Form",
-                    description: "Please share your thoughts about our service",
-                    settings: {
-                        requiresLogin: false,
-                        confirmationMessage: "Thank you for your feedback! We appreciate your input.",
-                        allowMultipleSubmissions: true,
+                const response = await fetch(`http://127.0.0.1:8000/api/v1/forms/${formId}`, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json",
                     },
-                    fields: [
-                        {
-                            id: "name",
-                            type: "text",
-                            order: 0,
-                            label: "Your Name",
-                            required: true,
-                            placeholder: "Enter your full name",
-                        },
-                        {
-                            id: "email",
-                            type: "email",
-                            order: 1,
-                            label: "Email Address",
-                            required: true,
-                            placeholder: "your.email@example.com",
-                        },
-                        {
-                            id: "feedback",
-                            type: "paragraph",
-                            order: 2,
-                            label: "Your Feedback",
-                            required: true,
-                            placeholder: "Please share your thoughts...",
-                        },
-                        {
-                            id: "rating",
-                            type: "multiple_choice",
-                            order: 3,
-                            label: "How would you rate our service?",
-                            required: true,
-                            config: {
-                                options: [
-                                    { label: "Excellent", value: "excellent" },
-                                    { label: "Good", value: "good" },
-                                    { label: "Average", value: "average" },
-                                    { label: "Poor", value: "poor" },
-                                ],
-                            },
-                        },
-                        {
-                            id: "subscribe",
-                            type: "checkbox",
-                            order: 4,
-                            label: "Subscribe to newsletter",
-                            config: {
-                                text: "Yes, I would like to receive updates and offers",
-                            },
-                        },
-                        {
-                            id: "submit",
-                            type: "submit",
-                            order: 5,
-                            label: "Submit Button",
-                            config: {
-                                text: "Submit Feedback",
-                            },
-                        },
-                    ],
-                }
+                });
+                if (!response.ok) throw new Error("Failed to load form data");
+                console.log(response.body)
+                const result = await response.json();
+                const apiForm = result;
 
-                setFormData(mockFormData)
+                const formattedData: FormData = {
+                    id: apiForm.id,
+                    title: apiForm.data.title,
+                    description: apiForm.data.description,
+                    settings: apiForm.data.settings,
+                    fields: apiForm.data.fields.map((field: any) => ({
+                        id: field.id,
+                        type: field.type,
+                        order: field.order,
+                        label: field.label,
+                        required: field.required,
+                        placeholder: field.placeholder,
+                        config: field.config || {},
+                        ...field,
+                    })),
+                };
+
+                setFormData(formattedData);
             } catch (err) {
-                console.error("Error fetching form:", err)
-                setError("Failed to load the form. Please try again later.")
+                console.error("Error fetching form:", err);
+                setError("Failed to load the form. Please try again later.");
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
         }
 
-        fetchFormData()
-    }, [formId])
+        fetchFormData();
+    }, [formId]);
+
+
 
     // Group fields by page breaks
     const pages = formData
