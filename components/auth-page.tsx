@@ -27,17 +27,101 @@ export function AuthPage() {
     }
   }, [searchParams])
 
-  const handleSignIn = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, you would authenticate the user here
-    router.push("/dashboard")
-  }
+  const handleSignIn = async (
+    emailOrEvent: string | React.FormEvent,
+    passwordFromArgs?: string
+  ): Promise<string | void> => {
+    let email: string;
+    let password: string;
 
-  const handleSignUp = (e: React.FormEvent) => {
-    e.preventDefault()
-    // In a real app, you would register the user here
-    router.push("/dashboard")
-  }
+    if (typeof emailOrEvent === "string") {
+      email = emailOrEvent;
+      password = passwordFromArgs!;
+    } else {
+      // Called from form submit
+      emailOrEvent.preventDefault();
+
+      const emailInput = document.getElementById("email") as HTMLInputElement;
+      const passwordInput = document.getElementById("password") as HTMLInputElement;
+
+      email = emailInput.value;
+      password = passwordInput.value;
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/token/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          username: email,
+          password: password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert("Login failed: " + (errorData.detail || response.statusText));
+        return;
+      }
+
+      const data = await response.json();
+      const token = data.access_token;
+
+      localStorage.setItem("token", token);
+      router.push("/dashboard");
+
+      return token;
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("An unexpected error occurred. Please try again.");
+    }
+  };
+
+
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const emailInput = document.getElementById("email") as HTMLInputElement;
+    const passwordInput = document.getElementById("password") as HTMLInputElement;
+    const firstName = document.getElementById("first-name") as HTMLInputElement;
+    const lastName = document.getElementById("last-name") as HTMLInputElement;
+
+    const email = emailInput.value;
+    const password = passwordInput.value;
+    const fullName = `${firstName.value} ${lastName.value}`;
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+          full_name: fullName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert("Signup failed: " + (errorData.detail || response.statusText));
+        return;
+      }
+
+      console.log("Signup successful. Logging in...");
+
+
+      await handleSignIn(email, password);
+    } catch (error) {
+      console.error("Signup error:", error);
+      alert("An unexpected error occurred. Please try again.");
+    }
+  };
+
 
   return (
     <div className="min-h-screen flex flex-col">
