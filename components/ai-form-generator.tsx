@@ -52,31 +52,49 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
     setError(null)
 
     try {
-      // This is a mock implementation - in a real app, you would call your AI service
-      // For demo purposes, we'll simulate a delay and return a mock form
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      // Mock form data based on the prompt
-      const mockFormData: FormData = {
-        id: generateId(),
-        title: activeTab === "text" ? prompt.split(" ").slice(0, 3).join(" ") + " Form" : "Generated Form from Image",
-        description: activeTab === "text" ? prompt : "Form generated from uploaded image",
-        settings: {
-          requiresLogin: false,
-          confirmationMessage: "Thank you for your submission!",
-          allowMultipleSubmissions: true,
-        },
-        fields: generateMockFields(prompt),
+      let response;
+      
+      if (activeTab === "text") {
+        // Text-based form generation
+        response = await fetch('/api/generate-form', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ prompt }),
+        });
+      } else {
+        // Image-based form generation
+        if (!imageFile) {
+          throw new Error('No image selected');
+        }
+        
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        if (prompt) {
+          formData.append('prompt', prompt);
+        }
+        
+        response = await fetch('/api/generate-form-from-image', {
+          method: 'POST',
+          body: formData,
+        });
       }
 
-      onFormGenerated(mockFormData)
-      setOpen(false)
-      resetForm()
-    } catch (err) {
-      setError("Failed to generate form. Please try again.")
-      console.error(err)
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate form');
+      }
+
+      const data = await response.json();
+      onFormGenerated(data.formData);
+      setOpen(false);
+      resetForm();
+    } catch (err: any) {
+      setError(err.message || "Failed to generate form. Please try again.");
+      console.error(err);
     } finally {
-      setIsGenerating(false)
+      setIsGenerating(false);
     }
   }
 
@@ -184,130 +202,4 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
       </DialogContent>
     </Dialog>
   )
-}
-
-// Helper function to generate mock fields based on the prompt
-function generateMockFields(prompt: string) {
-  const lowercasePrompt = prompt.toLowerCase()
-  const fields = []
-
-  // Add form heading
-  fields.push({
-    id: generateId(),
-    type: "form_heading",
-    order: 0,
-    label: "Form Heading",
-    config: {
-      text: "AI Generated Form",
-      size: "xl",
-    },
-  })
-
-  // Add description
-  fields.push({
-    id: generateId(),
-    type: "description",
-    order: 1,
-    label: "Description",
-    config: {
-      text: "This form was automatically generated based on your prompt.",
-    },
-  })
-
-  // Add name field
-  if (lowercasePrompt.includes("name") || lowercasePrompt.includes("contact")) {
-    fields.push({
-      id: generateId(),
-      type: "text",
-      order: fields.length,
-      label: "Name",
-      required: true,
-      placeholder: "Enter your full name",
-    })
-  }
-
-  // Add email field
-  if (lowercasePrompt.includes("email") || lowercasePrompt.includes("contact")) {
-    fields.push({
-      id: generateId(),
-      type: "email",
-      order: fields.length,
-      label: "Email",
-      required: true,
-      placeholder: "Enter your email address",
-    })
-  }
-
-  // Add phone field
-  if (lowercasePrompt.includes("phone") || lowercasePrompt.includes("contact")) {
-    fields.push({
-      id: generateId(),
-      type: "phone",
-      order: fields.length,
-      label: "Phone Number",
-      required: false,
-      placeholder: "Enter your phone number",
-    })
-  }
-
-  // Add feedback or comments field
-  if (lowercasePrompt.includes("feedback") || lowercasePrompt.includes("comment")) {
-    fields.push({
-      id: generateId(),
-      type: "paragraph",
-      order: fields.length,
-      label: "Feedback",
-      required: true,
-      placeholder: "Please provide your feedback",
-    })
-  }
-
-  // Add rating field
-  if (lowercasePrompt.includes("rating") || lowercasePrompt.includes("score")) {
-    fields.push({
-      id: generateId(),
-      type: "multiple_choice",
-      order: fields.length,
-      label: "Rating",
-      required: true,
-      config: {
-        options: [
-          { label: "Excellent", value: "excellent" },
-          { label: "Good", value: "good" },
-          { label: "Average", value: "average" },
-          { label: "Poor", value: "poor" },
-          { label: "Very Poor", value: "very_poor" },
-        ],
-      },
-    })
-  }
-
-  // Add date field
-  if (lowercasePrompt.includes("date") || lowercasePrompt.includes("when")) {
-    fields.push({
-      id: generateId(),
-      type: "date_time",
-      order: fields.length,
-      label: "Date",
-      required: false,
-      config: {
-        enableDate: true,
-        enableTime: false,
-      },
-    })
-  }
-
-  // Add submit button
-  fields.push({
-    id: generateId(),
-    type: "submit",
-    order: fields.length,
-    label: "Submit Button",
-    config: {
-      text: "Submit",
-      style: "primary",
-    },
-  })
-
-  return fields
 }
