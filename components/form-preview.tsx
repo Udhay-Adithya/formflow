@@ -35,14 +35,21 @@ export function FormPreview({ open, onOpenChange, formData }: FormPreviewProps) 
   const pages: FormComponent[][] = []
   let currentPage: FormComponent[] = []
 
-  formData.fields.forEach((field) => {
-    if (field.type === "page_break" && currentPage.length > 0) {
-      pages.push([...currentPage])
-      currentPage = []
-    } else {
-      currentPage.push(field)
-    }
-  })
+  if (formData.fields === undefined) {
+    formData.fields = []
+    currentPage = []
+  }
+  else {
+    formData.fields.forEach((field) => {
+      if (field.type === "page_break" && currentPage.length > 0) {
+        pages.push([...currentPage])
+        currentPage = []
+      } else {
+        currentPage.push(field)
+      }
+    })
+  }
+
 
   if (currentPage.length > 0) {
     pages.push(currentPage)

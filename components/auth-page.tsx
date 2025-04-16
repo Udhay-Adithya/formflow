@@ -70,6 +70,8 @@ export function AuthPage() {
       const token = data.access_token;
 
       localStorage.setItem("token", token);
+      localStorage.setItem("email", email)
+      localStorage.setItem("password", password)
       router.push("/dashboard");
 
       return token;
