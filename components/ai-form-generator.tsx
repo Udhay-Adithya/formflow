@@ -53,7 +53,7 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
 
     try {
       let response;
-      
+
       if (activeTab === "text") {
         // Text-based form generation
         response = await fetch('/api/generate-form', {
@@ -68,13 +68,13 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
         if (!imageFile) {
           throw new Error('No image selected');
         }
-        
+
         const formData = new FormData();
         formData.append('image', imageFile);
         if (prompt) {
           formData.append('prompt', prompt);
         }
-        
+
         response = await fetch('/api/generate-form-from-image', {
           method: 'POST',
           body: formData,
