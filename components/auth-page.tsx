@@ -11,11 +11,14 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Github, Layers, Mail } from "lucide-react"
+import { Github, Layers, Loader2, Mail } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
+import { api, ApiError, setAuthToken } from "@/lib/api"
 
 export function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("signin")
+  const [error, setError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -27,102 +30,69 @@ export function AuthPage() {
     }
   }, [searchParams])
 
-  const handleSignIn = async (
-    emailOrEvent: string | React.FormEvent,
-    passwordFromArgs?: string
-  ): Promise<string | void> => {
-    let email: string;
-    let password: string;
+  // Only allow same-site relative paths, so ?next= can't redirect to another site
+  const nextPath = (() => {
+    const next = searchParams.get("next")
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard"
+  })()
 
-    if (typeof emailOrEvent === "string") {
-      email = emailOrEvent;
-      password = passwordFromArgs!;
-    } else {
-      // Called from form submit
-      emailOrEvent.preventDefault();
+  const signIn = async (email: string, password: string) => {
+    const { access_token } = await api.login(email, password)
+    // Only the token is stored; never the password
+    setAuthToken(access_token)
+    localStorage.setItem("email", email)
+    router.push(nextPath)
+  }
 
-      const emailInput = document.getElementById("email") as HTMLInputElement;
-      const passwordInput = document.getElementById("password") as HTMLInputElement;
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
 
-      email = emailInput.value;
-      password = passwordInput.value;
-    }
+    const email = (document.getElementById("email") as HTMLInputElement).value
+    const password = (document.getElementById("password") as HTMLInputElement).value
 
+    setIsSubmitting(true)
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/token/", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          username: email,
-          password: password,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        alert("Login failed: " + (errorData.detail || response.statusText));
-        return;
-      }
-
-      const data = await response.json();
-      const token = data.access_token;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("email", email)
-      localStorage.setItem("password", password)
-      router.push("/dashboard");
-
-      return token;
-    } catch (error) {
-      console.error("Login error:", error);
-      alert("An unexpected error occurred. Please try again.");
+      await signIn(email, password)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "An unexpected error occurred. Please try again.")
+    } finally {
+      setIsSubmitting(false)
     }
-  };
-
-
+  }
 
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
+    setError(null)
 
-    const emailInput = document.getElementById("email") as HTMLInputElement;
-    const passwordInput = document.getElementById("password") as HTMLInputElement;
-    const firstName = document.getElementById("first-name") as HTMLInputElement;
-    const lastName = document.getElementById("last-name") as HTMLInputElement;
+    const email = (document.getElementById("email") as HTMLInputElement).value
+    const password = (document.getElementById("password") as HTMLInputElement).value
+    const confirmPassword = (document.getElementById("confirm-password") as HTMLInputElement).value
 
-    const email = emailInput.value;
-    const password = passwordInput.value;
-    const fullName = `${firstName.value} ${lastName.value}`;
-
-    try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: email,
-          password: password,
-          full_name: fullName,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        alert("Signup failed: " + (errorData.detail || response.statusText));
-        return;
-      }
-
-      console.log("Signup successful. Logging in...");
-
-
-      await handleSignIn(email, password);
-    } catch (error) {
-      console.error("Signup error:", error);
-      alert("An unexpected error occurred. Please try again.");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.")
+      return
     }
-  };
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await api.register(email, password)
+      await signIn(email, password)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "An unexpected error occurred. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    setError(null)
+  }
 
 
   return (
@@ -141,7 +111,7 @@ export function AuthPage() {
 
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -172,7 +142,9 @@ export function AuthPage() {
                       </div>
                       <Input id="password" type="password" required />
                     </div>
-                    <Button type="submit" className="w-full">
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Sign In
                     </Button>
                   </form>
@@ -200,7 +172,7 @@ export function AuthPage() {
                 <CardFooter className="justify-center">
                   <p className="text-sm text-muted-foreground">
                     Don&apos;t have an account?{" "}
-                    <button onClick={() => setActiveTab("signup")} className="text-primary hover:underline font-medium">
+                    <button onClick={() => handleTabChange("signup")} className="text-primary hover:underline font-medium">
                       Sign up
                     </button>
                   </p>
@@ -238,7 +210,9 @@ export function AuthPage() {
                       <Label htmlFor="confirm-password">Confirm Password</Label>
                       <Input id="confirm-password" type="password" required />
                     </div>
-                    <Button type="submit" className="w-full">
+                    {error && <p className="text-sm text-destructive">{error}</p>}
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Create Account
                     </Button>
                   </form>
@@ -266,7 +240,7 @@ export function AuthPage() {
                 <CardFooter className="justify-center">
                   <p className="text-sm text-muted-foreground">
                     Already have an account?{" "}
-                    <button onClick={() => setActiveTab("signin")} className="text-primary hover:underline font-medium">
+                    <button onClick={() => handleTabChange("signin")} className="text-primary hover:underline font-medium">
                       Sign in
                     </button>
                   </p>
