@@ -10,6 +10,19 @@ import { renderFormComponent } from "@/lib/render-component"
 import type { FormData } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { api, ApiError, toFormData } from "@/lib/api"
+
+// Mirrors the server's rule: unchecked boxes, blank text and empty selections count as no answer
+function isEmptyAnswer(value: unknown) {
+    return (
+        value === undefined ||
+        value === null ||
+        value === false ||
+        (typeof value === "number" && Number.isNaN(value)) ||
+        (typeof value === "string" && value.trim() === "") ||
+        (Array.isArray(value) && value.length === 0)
+    )
+}
 
 interface ShareableFormProps {
     formId: string
@@ -25,6 +38,7 @@ export function ShareableForm({ formId }: ShareableFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
     const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+    const [submitError, setSubmitError] = useState<string | null>(null)
 
     // Fetch form data
     useEffect(() => {
@@ -33,43 +47,17 @@ export function ShareableForm({ formId }: ShareableFormProps) {
             setError(null)
 
             try {
-                console.log('Form ID:', formId)
-                const token = localStorage.getItem("token");
-                if (!token) throw new Error("No authentication token found");
-
-                const response = await fetch(`http://127.0.0.1:8000/api/v1/forms/${formId}`, {
-                    method: "GET",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                });
-                if (!response.ok) throw new Error("Failed to load form data");
-                console.log(response.body)
-                const result = await response.json();
-                const apiForm = result;
-
-                const formattedData: FormData = {
-                    id: apiForm.id,
-                    title: apiForm.data.title,
-                    description: apiForm.data.description,
-                    settings: apiForm.data.settings,
-                    fields: apiForm.data.fields.map((field: any) => ({
-                        id: field.id,
-                        type: field.type,
-                        order: field.order,
-                        label: field.label,
-                        required: field.required,
-                        placeholder: field.placeholder,
-                        config: field.config || {},
-                        ...field,
-                    })),
-                };
-
-                setFormData(formattedData);
+                // Public endpoint: respondents don't need an account to open a shared form
+                const apiForm = await api.getForm(formId)
+                const data = toFormData(apiForm)
+                data.fields = [...data.fields].sort((a, b) => a.order - b.order)
+                setFormData(data)
             } catch (err) {
-                console.error("Error fetching form:", err);
-                setError("Failed to load the form. Please try again later.");
+                setError(
+                    err instanceof ApiError && err.status === 404
+                        ? "This form doesn't exist or has been deleted."
+                        : "Failed to load the form. Please try again later.",
+                )
             } finally {
                 setLoading(false);
             }
@@ -126,7 +114,7 @@ export function ShareableForm({ formId }: ShareableFormProps) {
         const currentFields = pages[currentPage]
 
         currentFields.forEach((field) => {
-            if (field.required && !formState[field.id]) {
+            if (field.required && isEmptyAnswer(formState[field.id])) {
                 errors[field.id] = "This field is required"
             }
 
@@ -173,25 +161,25 @@ export function ShareableForm({ formId }: ShareableFormProps) {
         if (!validateCurrentPage()) return
 
         setIsSubmitting(true)
+        setSubmitError(null)
 
         try {
-            // In a real app, this would be a fetch call to your API
-            // For now, we'll simulate a delay
-            await new Promise((resolve) => setTimeout(resolve, 1500))
-
-            // This is where you would submit the form data to your backend
-            // const response = await fetch(`/api/forms/${formId}/submissions`, {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify(formState),
-            // });
-            // if (!response.ok) throw new Error('Failed to submit form');
-
-            console.log("Form submitted with data:", formState)
+            // Send only real answers; unanswered optional fields are omitted
+            const answers = Object.fromEntries(
+                Object.entries(formState).filter(([, value]) => !isEmptyAnswer(value)),
+            )
+            await api.submitResponse(formId, answers)
             setSubmitted(true)
         } catch (err) {
-            console.error("Error submitting form:", err)
-            setError("Failed to submit the form. Please try again.")
+            if (err instanceof ApiError && Object.keys(err.fieldErrors).length > 0) {
+                // Server-side validation failed: show each message next to its field
+                setValidationErrors(err.fieldErrors)
+                const firstPage = pages.findIndex((page) => page.some((field) => err.fieldErrors[field.id]))
+                if (firstPage >= 0) setCurrentPage(firstPage)
+                setSubmitError(err.message)
+            } else {
+                setSubmitError(err instanceof Error ? err.message : "Failed to submit the form. Please try again.")
+            }
         } finally {
             setIsSubmitting(false)
         }
@@ -202,6 +190,7 @@ export function ShareableForm({ formId }: ShareableFormProps) {
         setCurrentPage(0)
         setSubmitted(false)
         setValidationErrors({})
+        setSubmitError(null)
     }
 
     if (loading) {
@@ -301,6 +290,8 @@ export function ShareableForm({ formId }: ShareableFormProps) {
                                 )
                             })}
                         </div>
+
+                        {submitError && <p className="text-destructive text-sm mt-6">{submitError}</p>}
 
                         <div className="flex justify-between mt-8">
                             {currentPage > 0 ? (

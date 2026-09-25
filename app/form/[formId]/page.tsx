@@ -1,5 +1,7 @@
 import { ShareableForm } from "@/components/sharable-form";
 
-export default function ShareableFormPage({ params }: { params: { formId: string } }) {
-    return <ShareableForm formId={params.formId} />
+// Next.js 15 passes route params as a Promise
+export default async function ShareableFormPage({ params }: { params: Promise<{ formId: string }> }) {
+    const { formId } = await params
+    return <ShareableForm formId={formId} />
 }
