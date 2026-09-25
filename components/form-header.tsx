@@ -88,6 +88,12 @@ export function FormHeader({ formData, onFormUpdate, saveState, onSave }: FormHe
   }
 
   const handleFormGenerated = (generatedForm: FormData) => {
+    if (
+      formData.fields.length > 0 &&
+      !confirm(`Replace the ${formData.fields.length} existing fields with the generated form?`)
+    ) {
+      return
+    }
     // Preserve the original ID
     onFormUpdate({
       ...generatedForm,

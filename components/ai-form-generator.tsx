@@ -20,7 +20,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Loader2, Wand2 } from "lucide-react"
 import type { FormData } from "@/lib/types"
-import { generateId } from "@/lib/utils"
+import { getAuthToken } from "@/lib/api"
+
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 interface AiFormGeneratorProps {
   onFormGenerated: (formData: FormData) => void
@@ -37,6 +39,12 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
+    setError(null)
+    if (file && file.size > MAX_IMAGE_BYTES) {
+      setError("Image must be 5 MB or smaller.")
+      e.target.value = ""
+      return
+    }
     if (file) {
       setImageFile(file)
       const reader = new FileReader()
@@ -53,6 +61,8 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
 
     try {
       let response;
+      // The AI routes only serve signed-in users; they verify this token with the backend
+      const authHeader = { Authorization: `Bearer ${getAuthToken() ?? ""}` }
 
       if (activeTab === "text") {
         // Text-based form generation
@@ -60,6 +70,7 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...authHeader,
           },
           body: JSON.stringify({ prompt }),
         });
@@ -77,12 +88,13 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
 
         response = await fetch('/api/generate-form-from-image', {
           method: 'POST',
+          headers: authHeader,
           body: formData,
         });
       }
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to generate form');
       }
 
@@ -144,7 +156,7 @@ export function AiFormGenerator({ onFormGenerated }: AiFormGeneratorProps) {
             <div className="space-y-2">
               <Label htmlFor="image-upload">Upload an image</Label>
               <div className="flex items-center gap-4">
-                <Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} className="flex-1" />
+                <Input id="image-upload" type="file" accept="image/png,image/jpeg,image/webp,image/heic,image/heif" onChange={handleImageChange} className="flex-1" />
               </div>
 
               {imagePreview && (
