@@ -1,4 +1,5 @@
 import type { FormComponent, FormData } from "@/lib/types"
+import { generateId } from "@/lib/utils"
 
 // Base URL of the FastAPI backend, configurable per environment
 export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api/v1").replace(/\/$/, "")
@@ -180,6 +181,9 @@ export const api = {
     request<ApiForm>(`/forms/${formData.id}`, { method: "PUT", json: { data: toPayload(formData) } }),
 
   deleteForm: (formId: string) => request<ApiForm>(`/forms/${formId}`, { method: "DELETE" }),
+
+  duplicateForm: (formData: FormData) =>
+    api.createForm({ ...formData, id: generateId(), title: `${formData.title} (copy)` }),
 
   // Public: respondents don't need an account
   submitResponse: (formId: string, answers: Record<string, unknown>) =>
