@@ -42,13 +42,13 @@ export function ComponentLibrary({ onAddComponent }: ComponentLibraryProps) {
   const filteredComponents = componentTypes.filter(
     (component) =>
       component.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      component.description.toLowerCase().includes(searchQuery.toLowerCase()),
+      (component.description ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const filteredPageComponents = pageComponentTypes.filter(
     (component) =>
       component.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      component.description.toLowerCase().includes(searchQuery.toLowerCase()),
+      (component.description ?? "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   return (
@@ -170,7 +170,9 @@ function ComponentItem({ component, onAddComponent }: ComponentItemProps) {
 
   return (
     <div
-      ref={drag}
+      ref={(node) => {
+        drag(node)
+      }}
       className={`component-library-item flex items-center p-3 rounded-md cursor-grab hover:bg-secondary ${
         isDragging ? "opacity-50" : ""
       }`}
