@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useDrop } from "react-dnd"
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import type { FormComponent, FormData } from "@/lib/types"
 import { Card } from "@/components/ui/card"
 import { renderFormComponent } from "@/lib/render-component"
@@ -38,10 +38,13 @@ export function FormCanvas({
     }),
   }))
 
-  const handleDragEnd = (result: any) => {
+  // Copy before sorting: Array.prototype.sort mutates, and fields is React state
+  const sortedFields = [...formData.fields].sort((a, b) => a.order - b.order)
+
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return
 
-    const items = Array.from(formData.fields)
+    const items = Array.from(sortedFields)
     const [reorderedItem] = items.splice(result.source.index, 1)
     items.splice(result.destination.index, 0, reorderedItem)
 
@@ -72,9 +75,7 @@ export function FormCanvas({
             <Droppable droppableId="form-components">
               {(provided) => (
                 <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                  {formData.fields
-                    .sort((a, b) => a.order - b.order)
-                    .map((component, index) => (
+                  {sortedFields.map((component, index) => (
                       <Draggable key={component.id} draggableId={component.id} index={index}>
                         {(provided, snapshot) => (
                           <div

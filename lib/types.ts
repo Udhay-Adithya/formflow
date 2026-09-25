@@ -30,6 +30,18 @@ export interface FormComponent {
     allowOther?: boolean
     text?: string
     multiple?: boolean
+    // date_time
+    enableDate?: boolean
+    enableTime?: boolean
+    // image / link
+    url?: string
+    // headings, divider, submit, spacer
+    size?: string
+    style?: string
+    height?: string
+    // page_break
+    prevButtonText?: string
+    nextButtonText?: string
   }
   isNew?: boolean
 }

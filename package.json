@@ -9,7 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
+    "@google/genai": "^2.24.0",
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
@@ -52,7 +53,6 @@
     "next": "15.2.4",
     "next-themes": "latest",
     "react": "^18.3.1",
-    "react-beautiful-dnd": "latest",
     "react-day-picker": "8.10.1",
     "react-dnd": "latest",
     "react-dnd-html5-backend": "latest",
@@ -71,7 +71,6 @@
     "@types/formidable": "^3.4.5",
     "@types/node": "^22",
     "@types/react": "^19",
-    "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-dom": "^19",
     "postcss": "^8",
     "tailwindcss": "^3.4.17",

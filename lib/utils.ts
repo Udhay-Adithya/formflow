@@ -9,8 +9,3 @@ export function cn(...inputs: ClassValue[]) {
 export function generateId(): string {
   return uuidv4();
 }
-
-export function getAuthToken() {
-  // Retrieve your authentication token from wherever it's stored
-  return localStorage.getItem('token')
-}

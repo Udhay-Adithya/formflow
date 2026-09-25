@@ -28,6 +28,8 @@ interface ShareFormDialogProps {
 export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
     const [copied, setCopied] = useState(false)
     const [activeTab, setActiveTab] = useState<"link" | "email">("link")
+    const [emailRecipients, setEmailRecipients] = useState("")
+    const [emailMessage, setEmailMessage] = useState("")
 
     // Generate the shareable link
     const shareableLink =
@@ -39,10 +41,17 @@ export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
         setTimeout(() => setCopied(false), 2000)
     }
 
+    // No email service on the backend, so hand off to the user's email app with a prefilled draft
     const handleSendEmail = (e: React.FormEvent) => {
         e.preventDefault()
-        // In a real app, this would send the email
-        console.log("Email sharing functionality would go here")
+        const recipients = emailRecipients
+            .split(",")
+            .map((address) => address.trim())
+            .filter(Boolean)
+            .join(",")
+        const body = `${emailMessage || "I'd like to share this form with you."}\n\n${shareableLink}`
+        const subject = `Please fill out: ${formData.title}`
+        window.location.href = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
     }
 
     return (
@@ -123,19 +132,30 @@ export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
                     <TabsContent value="email" className="space-y-4 py-4">
                         <form onSubmit={handleSendEmail} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">Email Addresses</Label>
-                                <Input id="email" placeholder="email@example.com, email2@example.com" />
+                                <Label htmlFor="share-email">Email Addresses</Label>
+                                <Input
+                                    id="share-email"
+                                    placeholder="email@example.com, email2@example.com"
+                                    value={emailRecipients}
+                                    onChange={(e) => setEmailRecipients(e.target.value)}
+                                />
                                 <p className="text-xs text-muted-foreground">Separate multiple email addresses with commas.</p>
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="message">Message (Optional)</Label>
-                                <Textarea id="message" placeholder="I'd like to share this form with you..." rows={3} />
+                                <Label htmlFor="share-message">Message (Optional)</Label>
+                                <Textarea
+                                    id="share-message"
+                                    placeholder="I'd like to share this form with you..."
+                                    rows={3}
+                                    value={emailMessage}
+                                    onChange={(e) => setEmailMessage(e.target.value)}
+                                />
                             </div>
 
                             <Button type="submit" className="w-full">
                                 <Mail className="h-4 w-4 mr-2" />
-                                Send Email
+                                Open in Email App
                             </Button>
                         </form>
                     </TabsContent>

@@ -40,9 +40,9 @@ export function JsonViewerTab({ formData, onFormUpdate }: JsonViewerTabProps) {
     try {
       const parsedJson = JSON.parse(importedJson)
 
-      // Basic validation
-      if (!parsedJson.id || !Array.isArray(parsedJson.fields)) {
-        throw new Error("Invalid form structure. JSON must include 'id' and 'fields' array.")
+      // Basic validation (the current form keeps its own id, so an imported id is optional)
+      if (typeof parsedJson.title !== "string" || !Array.isArray(parsedJson.fields)) {
+        throw new Error("Invalid form structure. JSON must include a 'title' and a 'fields' array.")
       }
 
       if (onFormUpdate) {
