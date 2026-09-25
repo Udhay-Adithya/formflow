@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Copy, Download, Upload } from "lucide-react"
+import { toast } from "sonner"
+import { copyToClipboard } from "@/lib/utils"
 
 interface JsonViewerTabProps {
   formData: FormData
@@ -20,8 +22,12 @@ export function JsonViewerTab({ formData, onFormUpdate }: JsonViewerTabProps) {
   const [importError, setImportError] = useState<string | null>(null)
   const [importedJson, setImportedJson] = useState<string>("")
 
-  const handleCopyToClipboard = () => {
-    navigator.clipboard.writeText(jsonString)
+  const handleCopyToClipboard = async () => {
+    if (await copyToClipboard(jsonString)) {
+      toast.success("JSON copied to clipboard")
+    } else {
+      toast.error("Could not copy the JSON. Use Download instead.")
+    }
   }
 
   const handleDownloadJson = () => {

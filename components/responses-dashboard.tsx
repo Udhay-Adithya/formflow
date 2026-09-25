@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { FormComponent, FormData } from "@/lib/types"
 import { api, ApiError, toFormData, type ApiResponse } from "@/lib/api"
 import { loginPath, useRequireAuth } from "@/hooks/use-require-auth"
+import { copyToClipboard } from "@/lib/utils"
 import {
     CHOICE_TYPES,
     completionRate,
@@ -163,11 +164,11 @@ export function ResponsesDashboard({ formId }: ResponsesDashboardProps) {
     }
 
     const copyShareLink = async () => {
-        try {
-            await navigator.clipboard.writeText(`${window.location.origin}/form/${formId}`)
+        const link = `${window.location.origin}/form/${formId}`
+        if (await copyToClipboard(link)) {
             toast.success("Share link copied to clipboard")
-        } catch {
-            toast.error("Could not copy the link")
+        } else {
+            toast.error(`Could not copy automatically. Share this link: ${link}`)
         }
     }
 

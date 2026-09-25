@@ -2,7 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { toast } from "sonner"
 import { Check, Copy, Link, Mail, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,6 +20,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { FormData } from "@/lib/types"
+import { copyToClipboard } from "@/lib/utils"
 
 interface ShareFormDialogProps {
     formData: FormData
@@ -28,6 +30,7 @@ interface ShareFormDialogProps {
 export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
     const [copied, setCopied] = useState(false)
     const [activeTab, setActiveTab] = useState<"link" | "email">("link")
+    const linkInputRef = useRef<HTMLInputElement>(null)
     const [emailRecipients, setEmailRecipients] = useState("")
     const [emailMessage, setEmailMessage] = useState("")
 
@@ -35,10 +38,29 @@ export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
     const shareableLink =
         typeof window !== "undefined" ? `${window.location.origin}/form/${formData.id}` : `/form/${formData.id}`
 
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(shareableLink)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
+    const handleCopyLink = async () => {
+        if (await copyToClipboard(shareableLink)) {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+            toast.success("Link copied to clipboard")
+        } else {
+            // Last resort: select the link so the user can copy it manually
+            linkInputRef.current?.select()
+            toast.error("Couldn't copy automatically. The link is selected; press Ctrl/Cmd+C.")
+        }
+    }
+
+    // The native share sheet (navigator.share) is only available on secure origins; otherwise copy the link
+    const handleNativeShare = async () => {
+        if (typeof navigator.share === "function") {
+            try {
+                await navigator.share({ title: formData.title, text: formData.description, url: shareableLink })
+            } catch {
+                // User dismissed the share sheet
+            }
+            return
+        }
+        await handleCopyLink()
     }
 
     // No email service on the backend, so hand off to the user's email app with a prefilled draft
@@ -80,8 +102,15 @@ export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
                         <div className="space-y-2">
                             <Label htmlFor="link">Shareable Link</Label>
                             <div className="flex items-center space-x-2">
-                                <Input id="link" value={shareableLink} readOnly className="flex-1" />
-                                <Button size="icon" onClick={handleCopyLink}>
+                                <Input
+                                    id="link"
+                                    ref={linkInputRef}
+                                    value={shareableLink}
+                                    readOnly
+                                    className="flex-1"
+                                    onFocus={(e) => e.target.select()}
+                                />
+                                <Button size="icon" onClick={handleCopyLink} aria-label="Copy link">
                                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                                 </Button>
                             </div>
@@ -96,15 +125,7 @@ export function ShareFormDialog({ formData, trigger }: ShareFormDialogProps) {
                                 <Button
                                     variant="outline"
                                     className="flex-1"
-                                    onClick={() => {
-                                        if (navigator.share) {
-                                            navigator.share({
-                                                title: formData.title,
-                                                text: formData.description,
-                                                url: shareableLink,
-                                            })
-                                        }
-                                    }}
+                                    onClick={handleNativeShare}
                                 >
                                     <Share2 className="h-4 w-4 mr-2" />
                                     Share

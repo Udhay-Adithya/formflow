@@ -33,6 +33,7 @@ import { ModeToggle } from "@/components/mode-toggle"
 import { api, ApiError, clearAuthToken, toFormData, type ApiForm } from "@/lib/api"
 import { buildFormFromTemplate, FORM_TEMPLATES, type FormTemplate } from "@/lib/form-templates"
 import { loginPath, useRequireAuth } from "@/hooks/use-require-auth"
+import { copyToClipboard } from "@/lib/utils"
 
 // Display-only components (headings, dividers, ...) don't count as questions
 const NON_INPUT_TYPES = new Set([
@@ -100,11 +101,11 @@ export function FormDashboard() {
   const handleViewResponses = (formId: string) => router.push(`/dashboard/forms/${formId}/responses`)
 
   const handleCopyLink = async (formId: string) => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}/form/${formId}`)
+    const link = `${window.location.origin}/form/${formId}`
+    if (await copyToClipboard(link)) {
       toast.success("Share link copied to clipboard")
-    } catch {
-      toast.error("Could not copy the link")
+    } else {
+      toast.error(`Could not copy automatically. Share this link: ${link}`)
     }
   }
 
