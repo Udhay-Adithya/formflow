@@ -1,6 +1,7 @@
 import { ResponsesDashboard } from "@/components/responses-dashboard";
 
-
-export default function ResponsesPage({ params }: { params: { formId: string } }) {
-    return <ResponsesDashboard formId={params.formId} />
+// Next.js 15 passes route params as a Promise
+export default async function ResponsesPage({ params }: { params: Promise<{ formId: string }> }) {
+    const { formId } = await params
+    return <ResponsesDashboard formId={formId} />
 }
