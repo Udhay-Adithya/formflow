@@ -79,6 +79,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_API_URL` | FastAPI backend base URL (default `http://127.0.0.1:8000/api/v1`) |
 | `GEMINI_API_KEY` | Google Gemini API key for AI generation (server-side only). Get one at [Google AI Studio](https://aistudio.google.com/apikey) |
 | `GEMINI_MODEL` | Optional Gemini model override (default `gemini-3.8-flash`) |
+| `GEMINI_FALLBACK_MODEL` | Optional model used when the main one is overloaded or unavailable (default `gemini-3.6-flash`) |
 
 ### 💻 Run Development Server
 

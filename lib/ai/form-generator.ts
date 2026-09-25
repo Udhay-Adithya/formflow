@@ -5,6 +5,15 @@ import { ApiError as GeminiApiError, GoogleGenAI, HarmBlockThreshold, HarmCatego
 import type { FormComponent, FormData } from "@/lib/types"
 
 const DEFAULT_MODEL = "gemini-3.8-flash"
+// Used when the primary model is overloaded or unavailable
+const DEFAULT_FALLBACK_MODEL = "gemini-3.6-flash"
+
+// Retry policy for transient upstream failures: each round tries every model once,
+// then waits 1s, 2s, 4s... before the next round
+const MAX_ROUNDS = 4
+const BASE_BACKOFF_MS = 1000
+const ATTEMPT_TIMEOUT_MS = 45_000
+const TRANSIENT_STATUSES = new Set([500, 502, 503, 504])
 
 // Field types the builder knows how to render (see lib/render-component.tsx)
 const FIELD_TYPES = [
@@ -198,6 +207,65 @@ export function normalizeGeneratedForm(raw: unknown): Omit<FormData, "id"> {
   }
 }
 
+/* ---------- resilient model calls ---------- */
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+function isTimeout(err: unknown) {
+  return err instanceof Error && (err.name === "AbortError" || err.name === "TimeoutError")
+}
+
+function isTransient(err: unknown) {
+  return isTimeout(err) || (err instanceof GeminiApiError && TRANSIENT_STATUSES.has(err.status))
+}
+
+/**
+ * Call Gemini with retries. Overload spikes hit models independently, so each round tries the
+ * primary then the fallback model, and rounds are separated by exponential backoff with jitter.
+ * Transient failures (5xx, timeouts) are retried; a missing model is dropped; other errors fail fast.
+ */
+async function generateWithRetry(parts: Part[]): Promise<string | undefined> {
+  const primary = process.env.GEMINI_MODEL || DEFAULT_MODEL
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL
+  let models = [...new Set([primary, fallback])]
+  let lastError: unknown
+
+  for (let round = 1; round <= MAX_ROUNDS && models.length > 0; round++) {
+    for (const model of models) {
+      try {
+        const response = await getClient().models.generateContent({
+          model,
+          contents: [{ role: "user", parts }],
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            responseMimeType: "application/json",
+            responseJsonSchema: FORM_SCHEMA,
+            safetySettings: SAFETY_SETTINGS,
+            abortSignal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+          },
+        })
+        return response.text
+      } catch (err) {
+        lastError = err
+        if (err instanceof AiError) throw err
+        // Model retired, not enabled for this key, or out of quota: stop using it, keep trying the others
+        if (err instanceof GeminiApiError && (err.status === 404 || err.status === 429)) {
+          console.warn(`Gemini ${model} skipped (${err.status})`)
+          models = models.filter((m) => m !== model)
+          continue
+        }
+        if (!isTransient(err)) throw err
+        console.warn(`Gemini ${model} round ${round} failed (${isTimeout(err) ? "timeout" : (err as GeminiApiError).status})`)
+      }
+    }
+    if (round < MAX_ROUNDS && models.length > 0) {
+      await sleep(BASE_BACKOFF_MS * 2 ** (round - 1) + Math.random() * 500)
+    }
+  }
+  throw lastError
+}
+
 /* ---------- generation ---------- */
 
 export async function generateForm({
@@ -207,7 +275,6 @@ export async function generateForm({
   prompt: string
   image?: { data: string; mimeType: string }
 }): Promise<Omit<FormData, "id">> {
-  const model = process.env.GEMINI_MODEL || DEFAULT_MODEL
   const parts: Part[] = []
   if (image) parts.push({ inlineData: { mimeType: image.mimeType, data: image.data } })
   parts.push({
@@ -218,29 +285,29 @@ export async function generateForm({
 
   let text: string | undefined
   try {
-    const response = await getClient().models.generateContent({
-      model,
-      contents: [{ role: "user", parts }],
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        temperature: 0.2,
-        responseMimeType: "application/json",
-        responseJsonSchema: FORM_SCHEMA,
-        safetySettings: SAFETY_SETTINGS,
-      },
-    })
-    text = response.text
+    text = await generateWithRetry(parts)
   } catch (err) {
     if (err instanceof AiError) throw err
+    if (isTimeout(err)) {
+      throw new AiError(504, "The AI took too long to respond. Please try again.")
+    }
     if (err instanceof GeminiApiError) {
       if (err.status === 400 || err.status === 401 || err.status === 403) {
         throw new AiError(502, "Gemini rejected the request. Check that GEMINI_API_KEY is valid.")
       }
       if (err.status === 404) {
-        throw new AiError(502, `Gemini model "${model}" is not available. Set GEMINI_MODEL to a supported model.`)
+        throw new AiError(502, "The configured Gemini models are not available. Set GEMINI_MODEL to a supported model.")
       }
       if (err.status === 429) {
-        throw new AiError(429, "Gemini rate limit reached. Please wait a moment and try again.")
+        throw new AiError(
+          429,
+          /PerDay/i.test(err.message)
+            ? "The daily Gemini quota for the configured models is used up. It resets daily; try again later or use another API key."
+            : "Gemini rate limit reached. Please wait a moment and try again.",
+        )
+      }
+      if (TRANSIENT_STATUSES.has(err.status)) {
+        throw new AiError(503, "Gemini is overloaded right now. Please try again in a moment.")
       }
     }
     console.error("Gemini request failed:", err)
